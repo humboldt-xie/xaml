@@ -107,8 +107,25 @@ func (p *Parser) ParseTextEle(level int) *XamlEle {
 	child := XamlEle{Type: T_TEXT, Level: level, Text: text}
 	return &child
 }
+func (p *Parser) ParseSkip(s rune) int {
+	count := 0
+	for {
+		c, ok := p.Cur()
+		if !ok {
+			break
+		}
+		if c == s {
+			count += 1
+			p.Next()
+		} else {
+			break
+		}
+	}
+	return count
+}
 func (p *Parser) ParseEleBody(ele *XamlEle) {
 	for {
+		p.ParseSkip(' ')
 		c, ok := p.Cur()
 		if !ok {
 			return
@@ -117,6 +134,7 @@ func (p *Parser) ParseEleBody(ele *XamlEle) {
 		case ':':
 			p.Next()
 			key := p.ParseEleName()
+			p.ParseSkip(' ')
 			value := p.ParseEleString()
 			ele.Args = append(ele.Args, XamlArg{Key: key, Value: value})
 		case '"':
@@ -143,21 +161,13 @@ func (p *Parser) ParseEleName() string {
 }
 
 func (p *Parser) ParseEle() *XamlEle {
-	spaceCount := 0
 	for {
+		spaceCount := p.ParseSkip(' ')
 		c, ok := p.Cur()
 		if !ok {
 			return nil
 		}
 		switch rune(c) {
-		case '\n':
-			spaceCount = 0 // new line
-			p.Next()
-			continue
-		case ' ':
-			spaceCount += 1
-			p.Next()
-			break
 		case '"':
 			// parse text ele
 			ele := p.ParseTextEle(spaceCount / 2)
@@ -198,8 +208,8 @@ func (p *Parser) Parse() *XamlEle {
 			root.AddChild(ele)
 			root = ele
 		}
-		c, _ := p.Cur()
-		if c != '\n' {
+		end := p.ParseSkip('\n')
+		if end <= 0 {
 			p.SetError("element must end of \\n")
 			break
 		}
@@ -238,7 +248,7 @@ func (x *XamlEle) Render(w io.Writer) {
 }
 
 func TestParseEle(t *testing.T) {
-	src := "div:id\"first div\"\"hello\"\n  li\n"
+	src := "div :id \"first div\" \"hello\"\n  a:href\"http://www.baidu.com\"\"baidu\"\n"
 	buffer := &bytes.Buffer{}
 	p := Parser{Reader: strings.NewReader(src)}
 	ele := p.Parse()
