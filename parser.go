@@ -1,13 +1,13 @@
 package xaml
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 )
 
 const (
@@ -37,8 +37,7 @@ func (x *XamlEle) AddChild(c *XamlEle) {
 }
 
 type Parser struct {
-	Reader io.Reader
-	Buf    []byte
+	Reader *bufio.Reader
 	C      rune
 	Has    bool
 	Eof    bool
@@ -54,31 +53,18 @@ func (p *Parser) Next() (rune, bool) {
 		return 0, false
 	}
 
-	if !p.Eof && len(p.Buf) < 30 {
-		buf := make([]byte, 30)
-		n, err := p.Reader.Read(buf)
-		if err != nil {
-			if err != io.EOF {
-				p.Error = err
-				return 0, false
-			} else {
-				p.Eof = true
-			}
-		}
-		p.Buf = append(p.Buf, buf[:n]...)
-	}
-	if len(p.Buf) == 0 {
+	r, _, err := p.Reader.ReadRune()
+	if err != nil {
+		p.Error = err
 		return 0, false
 	}
-	r, size := utf8.DecodeRune(p.Buf)
-	p.Buf = p.Buf[size:]
 	p.C = r
 	p.Has = true
 	return rune(p.C), true
 
 }
 func (p *Parser) EOF() bool {
-	return (p.Eof && len(p.Buf) == 0)
+	return p.Error == io.EOF
 }
 
 func (p *Parser) Cur() (rune, bool) {
@@ -292,7 +278,8 @@ func NewStrParser(src string) *Parser {
 }
 
 func NewParser(r io.Reader) *Parser {
-	p := Parser{Reader: r}
+	p := Parser{Reader: bufio.NewReader(r)}
+
 	return &p
 }
 

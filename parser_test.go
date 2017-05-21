@@ -14,7 +14,7 @@ func TestLogin(t *testing.T) {
 func TestParseEle(t *testing.T) {
 	src := "div :id \"first div\" \"hello\"\n  a:href \"http://www.baidu.com\" \"baidu\"\n"
 	buffer := &bytes.Buffer{}
-	p := Parser{Reader: strings.NewReader(src)}
+	p := NewParser(strings.NewReader(src))
 	ele := p.Parse()
 
 	ele.Render(buffer)
@@ -24,7 +24,7 @@ func TestParseEle(t *testing.T) {
 
 func TestParse(t *testing.T) {
 	src := "div\nli\n"
-	p := Parser{Reader: strings.NewReader(src)}
+	p := NewParser(strings.NewReader(src))
 	target := ""
 	for ; ; p.Next() {
 		c, f := p.Cur()
